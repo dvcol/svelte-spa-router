@@ -30,10 +30,10 @@
 <!-- Show the router -->
 <Router
   {routes}
-  on:conditionsFailed={conditionsFailed}
-  on:routeLoaded={routeLoaded}
-  on:routeLoading={routeLoading}
-  on:routeEvent={routeEvent}
+  {conditionsFailed}
+  {routeLoaded}
+  {routeLoading}
+  routeEvents={[routeEvent]}
   {restoreScrollState}
 />
 
@@ -87,15 +87,15 @@
 <script>
 // Import the router component
 // Normally, this would be: `import Router from 'svelte-spa-router'`
-import Router from '../../../Router.svelte'
+import Router from '../../../lib/index.js'
 // Import the "link" action, the methods to control history programmatically from the same module, and the location store
 // The params store contains the current list of params, parsed
 // Normally, this would be: `import {link, push, pop, replace, location, querystring} from 'svelte-spa-router/active'`
-import {link, push, pop, replace, location, querystring, params} from '../../../Router.svelte'
+import {link, push, pop, replace, location, querystring, params} from '../../../lib/index.js'
 
 // Import the "active" action
 // Normally, this would be: `import active from 'svelte-spa-router/active'`
-import active from '../../../active'
+import active from '../../../lib/active/active.js'
 
 // Import the list of routes
 import routes from './routes'

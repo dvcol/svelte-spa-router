@@ -1,7 +1,5 @@
 # Test app
-test/app/dist/bundle*
-test/app/dist/*.js
-test/app/dist/*.js.map
+test/app/dist
 
 # Example apps
 examples/*/dist/bundle*
@@ -10,6 +8,7 @@ examples/*/dist/*.js.map
 
 # This is a module published on NPM, so we can ignore package-lock.json
 package-lock.json
+pnpm-lock.yaml
 
 # Created by https://www.gitignore.io/api/node,macos,linux,windows,visualstudiocode
 
@@ -182,3 +181,4 @@ $RECYCLE.BIN/
 
 # IDE
 .idea
+*.iml
