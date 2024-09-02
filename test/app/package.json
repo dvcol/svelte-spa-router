@@ -1,0 +1,20 @@
+{
+  "name": "app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.9.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "regexparam": "2.0.2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0-next.6",
+    "svelte": "^5.0.0-next.243",
+    "vite": "^5.4.1"
+  }
+}
