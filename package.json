@@ -8,18 +8,22 @@
   "type": "module",
   "exports": {
     "./active": {
-      "types": "./active.d.ts",
-      "import": "./active.js"
+      "types": "./lib/active/active.d.ts",
+      "import": "./lib/active/active.js"
     },
     "./wrap": {
-      "types": "./wrap.d.ts",
-      "import": "./wrap.js"
+      "types": "./lib/wrap/wrap.d.ts",
+      "import": "./lib/wrap/wrap.js"
+    },
+    "./router": {
+      "types": "./lib/router/router.d.ts",
+      "import": "./lib/router/router.js"
     },
     ".": {
-      "types": "./Router.d.ts",
-      "svelte": "./Router.svelte"
+      "types": "./lib/index.d.ts",
+      "svelte": "./lib/index.js"
     }
-	},
+  },
   "scripts": {
     "build-test-app": "(cd test/app && npx rollup -c)",
     "start-test-app": "npx serve -n -l 5050 test/app/dist",
@@ -61,6 +65,6 @@
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-svelte": "^7.1.6",
     "serve": "^14.2.1",
-    "svelte": "^4.2.8"
+    "svelte": "^5.0.0-next.242"
   }
 }

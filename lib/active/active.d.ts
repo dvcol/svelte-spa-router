@@ -1,5 +1,5 @@
 /** Options for the `active` action */
-interface ActiveOptions {
+export interface ActiveOptions {
     /** Path to match; if empty, will default to the link's target */
     path?: string | RegExp
 
