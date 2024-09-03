@@ -161,13 +161,13 @@ interface RouterEvent<T> {
 }
 
 /** Event type for conditionsFailed */
-export type ConditionsFailedEvent = RouterEvent<RouteDetail>
+export type ConditionsFailedEvent = RouteDetail
 
 /** Event type for routeLoading */
-export type RouteLoadingEvent = RouterEvent<RouteDetail>
+export type RouteLoadingEvent = RouteDetail
 
 /** Event type for routeLoaded */
-export type RouteLoadedEvent = RouterEvent<RouteDetailLoaded>
+export type RouteLoadedEvent = RouteDetailLoaded
 
 /**
  * Router component
