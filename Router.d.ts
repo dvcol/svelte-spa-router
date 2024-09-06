@@ -1,6 +1,6 @@
 ///<reference types="svelte" />
 
-import {SvelteComponent, ComponentType} from 'svelte'
+import {SvelteComponent, Component} from 'svelte'
 import {Readable} from 'svelte/store'
 
 /** Dictionary with route details passed to the pre-conditions functions, as well as the `routeLoading` and `conditionsFailed` events */
@@ -23,18 +23,18 @@ export interface RouteDetail {
 
 /** Detail object for the `routeLoaded` event */
 export interface RouteDetailLoaded extends RouteDetail {
-     /** Svelte component */
-     component: ComponentType
+    /** Svelte component */
+    component: Component
 
-     /** Name of the Svelte component that was loaded (note: might be minified in production) */
-     name: string
+    /** Name of the Svelte component that was loaded (note: might be minified in production) */
+    name: string
 }
 
 /**
  * This is a Svelte component loaded asynchronously.
  * It's meant to be used with the `import()` function, such as `() => import('Foo.svelte')}`
  */
-export type AsyncSvelteComponent = () => Promise<{default: ComponentType}>
+export type AsyncSvelteComponent = () => Promise<{default: Component}>
 
 /**
  * Route pre-condition function. This is a callback that receives a RouteDetail object as argument containing information on the route that we're trying to load.
@@ -50,7 +50,7 @@ export type RoutePrecondition = (detail: RouteDetail) => (boolean | Promise<bool
 /** Object returned by the `wrap` method */
 export interface WrappedComponent {
     /** Component to load (this is always asynchronous) */
-    component: ComponentType
+    component: Component
 
     /** Route pre-conditions to validate */
     conditions?: RoutePrecondition[]
@@ -78,7 +78,7 @@ export function push(location: string): Promise<void>
 
 /**
  * Navigates back in history (equivalent to pressing the browser's back button).
- * 
+ *
  * @returns Promise that resolves after the page navigation has completed
  */
 export function pop(): Promise<void>
@@ -100,8 +100,8 @@ export type LinkActionOpts = {
 }
 
 /** Type for the update function of the link action */
-export type LinkActionUpdateFunc = ((opts?: LinkActionOpts) => void) | 
-    ((hrefVar?: string) => void)
+export type LinkActionUpdateFunc = ((opts?: LinkActionOpts) => void) |
+  ((hrefVar?: string) => void)
 
 /** Type for backwards-compatible (typo: Upate) */
 export type LinkActionUpateFunc = LinkActionUpdateFunc
@@ -152,8 +152,8 @@ export const params: Readable<Record<string, string> | undefined>
 // Note: the above is implemented as writable but exported as readable because consumers should not modify the value
 
 /** List of routes */
-export type RouteDefinition = Record<string, ComponentType | WrappedComponent> |
-    Map<string | RegExp, ComponentType | WrappedComponent>
+export type RouteDefinition = Record<string, Component | WrappedComponent> |
+  Map<string | RegExp, Component | WrappedComponent>
 
 /** Generic interface for events from the router */
 interface RouterEvent<T> {
@@ -161,13 +161,13 @@ interface RouterEvent<T> {
 }
 
 /** Event type for conditionsFailed */
-export type ConditionsFailedEvent = RouterEvent<RouteDetail>
+export type ConditionsFailedEvent = RouteDetail
 
 /** Event type for routeLoading */
-export type RouteLoadingEvent = RouterEvent<RouteDetail>
+export type RouteLoadingEvent = RouteDetail
 
 /** Event type for routeLoaded */
-export type RouteLoadedEvent = RouterEvent<RouteDetailLoaded>
+export type RouteLoadedEvent = RouteDetailLoaded
 
 /**
  * Router component
@@ -191,19 +191,39 @@ export default class Router extends SvelteComponent {
          * ````
          */
         routes: RouteDefinition,
+
         /**
          * Optional prefix for the routes in this router. This is useful for example in the case of nested routers.
          */
         prefix?: string | RegExp,
+
         /**
          * If set to true, the router will restore scroll positions on back navigation
          * and scroll to top on forward navigation.
          */
         restoreScrollState?: boolean
-    }
 
-    $on(event: 'routeEvent', callback: (event: CustomEvent) => void): () => void
-    $on(event: 'conditionsFailed', callback: (event: ConditionsFailedEvent) => void): () => void
-    $on(event: 'routeLoading', callback: (event: RouteLoadingEvent) => void): () => void
-    $on(event: 'routeLoaded', callback: (event: RouteLoadedEvent) => void): () => void
+        /**
+         * Event handler for when conditions check fails
+         * @param event
+         */
+        conditionsFailed?: (event: ConditionsFailedEvent) => void
+
+        /**
+         * Event handler for when a route is loading
+         * @param event
+         */
+        routeLoading?: (event: RouteLoadingEvent) => void
+
+        /**
+         * Event handler for when a route is loaded
+         * @param event
+         */
+        routeLoaded?: (event: RouteLoadedEvent) => void
+
+        /**
+         * Event handlers for custom events triggered by the routed components.
+         */
+        routeEvents?: Record<string, (event: CustomEvent) => void>
+    }
 }

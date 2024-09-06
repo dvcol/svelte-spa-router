@@ -1,4 +1,4 @@
-<script context="module">
+<script module>
 import {readable, writable, derived} from 'svelte/store'
 import {tick} from 'svelte'
 
@@ -234,74 +234,39 @@ function scrollstateHistoryHandler(href) {
     // This will force an update as desired, but this time our scroll state will be attached
     window.location.hash = href
 }
-</script>
 
-{#if componentParams}
-    <svelte:component
-    this={component}
-    params={componentParams}
-    on:routeEvent
-    {...props}
-    />
-{:else}
-    <svelte:component
-    this={component}
-    on:routeEvent
-    {...props}
-    />
-{/if}
+// Just like dispatch, but executes on the next iteration of the event loop
+export async function dispatchNextTick(callback, ...args) {
+    if (!callback) {
+        return
+    }
+    // Execute this code when the current call stack is complete
+    await tick()
+    return callback(...args)
+}
 
-<script>
-import {onDestroy, createEventDispatcher, afterUpdate} from 'svelte'
 import {parse} from 'regexparam'
-
-/**
- * Dictionary of all routes, in the format `'/path': component`.
- *
- * For example:
- * ````js
- * import HomeRoute from './routes/HomeRoute.svelte'
- * import BooksRoute from './routes/BooksRoute.svelte'
- * import NotFoundRoute from './routes/NotFoundRoute.svelte'
- * routes = {
- *     '/': HomeRoute,
- *     '/books': BooksRoute,
- *     '*': NotFoundRoute
- * }
- * ````
- */
-export let routes = {}
-
-/**
- * Optional prefix for the routes in this router. This is useful for example in the case of nested routers.
- */
-export let prefix = ''
-
-/**
- * If set to true, the router will restore scroll positions on back navigation
- * and scroll to top on forward navigation.
- */
-export let restoreScrollState = false
 
 /**
  * Container for a route: path, component
  */
-class RouteItem {
+export class RouteItem {
     /**
      * Initializes the object and creates a regular expression from the path, using regexparam.
      *
      * @param {string} path - Path to the route (must start with '/' or '*')
+     * @param {string} prefix - Optional prefix for the routes in this router
      * @param {SvelteComponent|WrappedComponent} component - Svelte component for the route, optionally wrapped
      */
-    constructor(path, component) {
+    constructor(path, component, prefix) {
         if (!component || (typeof component != 'function' && (typeof component != 'object' || component._sveltesparouter !== true))) {
             throw Error('Invalid component object')
         }
 
         // Path must be a regular or expression, or a string starting with '/' or '*'
-        if (!path || 
-            (typeof path == 'string' && (path.length < 1 || (path.charAt(0) != '/' && path.charAt(0) != '*'))) ||
-            (typeof path == 'object' && !(path instanceof RegExp))
+        if (!path ||
+          (typeof path == 'string' && (path.length < 1 || (path.charAt(0) != '/' && path.charAt(0) != '*'))) ||
+          (typeof path == 'object' && !(path instanceof RegExp))
         ) {
             throw Error('Invalid value for "path" argument - strings must start with / or *')
         }
@@ -326,6 +291,7 @@ class RouteItem {
 
         this._pattern = pattern
         this._keys = keys
+        this._prefix = prefix
     }
 
     /**
@@ -334,9 +300,10 @@ class RouteItem {
      * In case of no match, the method will return `null`.
      *
      * @param {string} path - Path to test
+     * @param {string} prefix - Optional prefix for the routes in this router
      * @returns {null|Object.<string, string>} List of paramters from the URL if there's a match, or `null` otherwise.
      */
-    match(path) {
+    match(path, prefix = this._prefix) {
         // If there's a prefix, check if it matches the start of the path.
         // If not, bail early, else remove it before we run the matching.
         if (prefix) {
@@ -398,7 +365,7 @@ class RouteItem {
 
     /**
      * Executes all conditions (if any) to control whether the route can be shown. Conditions are executed in the order they are defined, and if a condition fails, the following ones aren't executed.
-     * 
+     *
      * @param {RouteDetail} detail - Route detail
      * @returns {boolean} Returns true if all the conditions succeeded
      */
@@ -413,174 +380,215 @@ class RouteItem {
     }
 }
 
-// Set up all routes
-const routesList = []
-if (routes instanceof Map) {
-    // If it's a map, iterate on it right away
-    routes.forEach((route, path) => {
-        routesList.push(new RouteItem(path, route))
+</script>
+
+{#if componentParams}
+    <Component
+      params={componentParams}
+      {...routeEvents}
+      {...componentProps}
+    />
+{:else}
+    <Component
+      {...routeEvents}
+      {...componentProps}
+    />
+{/if}
+
+<script>
+    import {onDestroy} from 'svelte'
+
+    const {
+        /**
+         * Dictionary of all routes, in the format `'/path': component`.
+         *
+         * For example:
+         * ````js
+         * import HomeRoute from './routes/HomeRoute.svelte'
+         * import BooksRoute from './routes/BooksRoute.svelte'
+         * import NotFoundRoute from './routes/NotFoundRoute.svelte'
+         * routes = {
+         *     '/': HomeRoute,
+         *     '/books': BooksRoute,
+         *     '*': NotFoundRoute
+         * }
+         * ````
+         */
+        routes = {},
+        /**
+         * Optional prefix for the routes in this router. This is useful for example in the case of nested routers.
+         */
+        prefix = '',
+        /**
+         * If set to true, the router will restore scroll positions on back navigation
+         * and scroll to top on forward navigation.
+         */
+        restoreScrollState = false,
+        conditionsFailed,
+        routeLoading,
+        routeLoaded,
+        routeEvents,
+    } = $props()
+
+    // Set up all routes
+    const routesList = $derived.by(
+        () => {
+            // If it's a map, iterate on it right away
+            if (routes instanceof Map) {
+                return routes.map((route, path) => (new RouteItem(path, route, prefix)))
+            }
+            // We have an object, so iterate on its own properties
+            return Object.keys(routes).map((path) => (new RouteItem(path, routes[path], prefix)))
+
+        }
+    )
+
+    // Props for the component to render
+    let Component = $state(null)
+    let componentParams = $state(null)
+    let componentProps = $state({})
+
+    // If this is set, then that means we have popped into this var the state of our last scroll position
+    let previousScrollState = $state(null)
+
+    $effect(() => {
+        history.scrollRestoration = restoreScrollState ? 'manual' : 'auto'
     })
-}
-else {
-    // We have an object, so iterate on its own properties
-    Object.keys(routes).forEach((path) => {
-        routesList.push(new RouteItem(path, routes[path]))
-    })
-}
 
-// Props for the component to render
-let component = null
-let componentParams = null
-let props = {}
-
-// Event dispatcher from Svelte
-const dispatch = createEventDispatcher()
-
-// Just like dispatch, but executes on the next iteration of the event loop
-async function dispatchNextTick(name, detail) {
-    // Execute this code when the current call stack is complete
-    await tick()
-    dispatch(name, detail)
-}
-
-// If this is set, then that means we have popped into this var the state of our last scroll position
-let previousScrollState = null
-
-// Update history.scrollRestoration depending on restoreScrollState
-$: history.scrollRestoration = restoreScrollState ? 'manual' : 'auto'
-let popStateChanged = null
-if (restoreScrollState) {
-    popStateChanged = (event) => {
-        // If this event was from our history.replaceState, event.state will contain
-        // our scroll history. Otherwise, event.state will be null (like on forward
-        // navigation)
-        if (event.state && (event.state.__svelte_spa_router_scrollY || event.state.__svelte_spa_router_scrollX)) {
-            previousScrollState = event.state
-        }
-        else {
-            previousScrollState = null
-        }
-    }
-    // This is removed in the destroy() invocation below
-    window.addEventListener('popstate', popStateChanged)
-
-    afterUpdate(() => {
-        restoreScroll(previousScrollState)
-    })
-}
-
-// Always have the latest value of loc
-let lastLoc = null
-
-// Current object of the component loaded
-let componentObj = null
-
-// Handle hash change events
-// Listen to changes in the $loc store and update the page
-// Do not use the $: syntax because it gets triggered by too many things
-const unsubscribeLoc = loc.subscribe(async (newLoc) => {
-    lastLoc = newLoc
-
-    // Find a route matching the location
-    let i = 0
-    while (i < routesList.length) {
-        const match = routesList[i].match(newLoc.location)
-        if (!match) {
-            i++
-            continue
-        }
-
-        const detail = {
-            route: routesList[i].path,
-            location: newLoc.location,
-            querystring: newLoc.querystring,
-            userData: routesList[i].userData,
-            params: (match && typeof match == 'object' && Object.keys(match).length) ? match : null
-        }
-
-        // Check if the route can be loaded - if all conditions succeed
-        if (!(await routesList[i].checkConditions(detail))) {
-            // Don't display anything
-            component = null
-            componentObj = null
-            // Trigger an event to notify the user, then exit
-            dispatchNextTick('conditionsFailed', detail)
-            return
-        }
-
-        // Trigger an event to alert that we're loading the route
-        // We need to clone the object on every event invocation so we don't risk the object to be modified in the next tick
-        dispatchNextTick('routeLoading', Object.assign({}, detail))
-
-        // If there's a component to show while we're loading the route, display it
-        const obj = routesList[i].component
-        // Do not replace the component if we're loading the same one as before, to avoid the route being unmounted and re-mounted
-        if (componentObj != obj) {
-            if (obj.loading) {
-                component = obj.loading
-                componentObj = obj
-                componentParams = obj.loadingParams
-                props = {}
-
-                // Trigger the routeLoaded event for the loading component
-                // Create a copy of detail so we don't modify the object for the dynamic route (and the dynamic route doesn't modify our object too)
-                dispatchNextTick('routeLoaded', Object.assign({}, detail, {
-                    component: component,
-                    name: component.name,
-                    params: componentParams
-                }))
+    let popStateChanged = $state(null)
+    if (restoreScrollState) {
+        popStateChanged = (event) => {
+            // If this event was from our history.replaceState, event.state will contain
+            // our scroll history. Otherwise, event.state will be null (like on forward
+            // navigation)
+            if (event.state && (event.state.__svelte_spa_router_scrollY || event.state.__svelte_spa_router_scrollX)) {
+                previousScrollState = event.state
             }
             else {
-                component = null
-                componentObj = null
+                previousScrollState = null
+            }
+        }
+        // This is removed in the destroy() invocation below
+        window.addEventListener('popstate', popStateChanged)
+    }
+
+    $effect(() => {
+        if (restoreScrollState) {
+            restoreScroll(previousScrollState)
+        }
+    })
+
+    // Always have the latest value of loc
+    let lastLoc = null
+    // Current object of the component loaded
+    let componentObj = null
+
+    // Handle hash change events
+    // Listen to changes in the $loc store and update the page
+    // Do not use the $: syntax because it gets triggered by too many things
+    const unsubscribeLoc = loc.subscribe(async (newLoc) => {
+        lastLoc = newLoc
+
+        // Find a route matching the location
+        let i = 0
+        while (i < routesList.length) {
+            const match = routesList[i].match(newLoc.location)
+            if (!match) {
+                i++
+                continue
             }
 
-            // Invoke the Promise
-            const loaded = await obj()
+            const detail = {
+                route: routesList[i].path,
+                location: newLoc.location,
+                querystring: newLoc.querystring,
+                userData: routesList[i].userData,
+                params: (match && typeof match == 'object' && Object.keys(match).length) ? match : null,
+            }
 
-            // Now that we're here, after the promise resolved, check if we still want this component, as the user might have navigated to another page in the meanwhile
-            if (newLoc != lastLoc) {
-                // Don't update the component, just exit
+            // Check if the route can be loaded - if all conditions succeed
+            if (!(await routesList[i].checkConditions(detail))) {
+                // Don't display anything
+                Component = null
+                componentObj = null
+                // Trigger an event to notify the user, then exit
+                dispatchNextTick(conditionsFailed, detail)
                 return
             }
 
-            // If there is a "default" property, which is used by async routes, then pick that
-            component = (loaded && loaded.default) || loaded
-            componentObj = obj
+            // Trigger an event to alert that we're loading the route
+            // We need to clone the object on every event invocation so we don't risk the object to be modified in the next tick
+            dispatchNextTick(routeLoading, Object.assign({}, detail))
+
+            // If there's a component to show while we're loading the route, display it
+            const obj = routesList[i].component
+            // Do not replace the component if we're loading the same one as before, to avoid the route being unmounted and re-mounted
+            if (!Object.is(componentObj, obj)) {
+                if (obj.loading) {
+                    Component = obj.loading
+                    componentObj = obj
+                    componentParams = obj.loadingParams
+                    componentProps = {}
+
+                    // Trigger the routeLoaded event for the loading component
+                    // Create a copy of detail so we don't modify the object for the dynamic route (and the dynamic route doesn't modify our object too)
+                    dispatchNextTick(routeLoaded, Object.assign({}, detail, {
+                        component: Component,
+                        name: Component.name,
+                        params: componentParams,
+                    }))
+                }
+                else {
+                    Component = null
+                    componentObj = null
+                }
+
+                // Invoke the Promise
+                const loaded = await obj()
+
+                // Now that we're here, after the promise resolved, check if we still want this component, as the user might have navigated to another page in the meanwhile
+                if (!Object.is(newLoc, lastLoc)) {
+                    // Don't update the component, just exit
+                    return
+                }
+
+                // If there is a "default" property, which is used by async routes, then pick that
+                Component = (loaded && loaded.default) || loaded
+                componentObj = obj
+            }
+
+            // Set componentParams only if we have a match, to avoid a warning similar to `<Component> was created with unknown prop 'params'`
+            // Of course, this assumes that developers always add a "params" prop when they are expecting parameters
+            if (match && typeof match == 'object' && Object.keys(match).length) {
+                componentParams = match
+            }
+            else {
+                componentParams = null
+            }
+
+            // Set static props, if any
+            componentProps = routesList[i].props
+
+            // Dispatch the routeLoaded event then exit
+            // We need to clone the object on every event invocation so we don't risk the object to be modified in the next tick
+            dispatchNextTick(routeLoaded, Object.assign({}, detail, {
+                Component: Component,
+                name: Component.name,
+                params: componentParams,
+            })).then(() => {
+                params.set(componentParams)
+            })
+            return
         }
 
-        // Set componentParams only if we have a match, to avoid a warning similar to `<Component> was created with unknown prop 'params'`
-        // Of course, this assumes that developers always add a "params" prop when they are expecting parameters
-        if (match && typeof match == 'object' && Object.keys(match).length) {
-            componentParams = match
-        }
-        else {
-            componentParams = null
-        }
+        // If we're still here, there was no match, so show the empty component
+        Component = null
+        componentObj = null
+        params.set(undefined)
+    })
 
-        // Set static props, if any
-        props = routesList[i].props
-
-        // Dispatch the routeLoaded event then exit
-        // We need to clone the object on every event invocation so we don't risk the object to be modified in the next tick
-        dispatchNextTick('routeLoaded', Object.assign({}, detail, {
-            component: component,
-            name: component.name,
-            params: componentParams
-        })).then(() => {
-            params.set(componentParams)
-        })
-        return
-    }
-
-    // If we're still here, there was no match, so show the empty component
-    component = null
-    componentObj = null
-    params.set(undefined)
-})
-
-onDestroy(() => {
-    unsubscribeLoc()
-    popStateChanged && window.removeEventListener('popstate', popStateChanged)
-})
+    onDestroy(() => {
+        unsubscribeLoc()
+        popStateChanged && window.removeEventListener('popstate', popStateChanged)
+    })
 </script>
