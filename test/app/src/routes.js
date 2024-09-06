@@ -2,7 +2,7 @@
 
 // Import the "wrap" function
 // Normally, this would be: `import {wrap} from 'svelte-spa-router/wrap'`
-import {wrap} from '../../../wrap.js'
+import {wrap} from '../../../lib/wrap/wrap.js'
 
 // Components
 import Catalog from './routes/Catalog.svelte'

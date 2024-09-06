@@ -23,8 +23,8 @@ export interface RouteDetail {
 
 /** Detail object for the `routeLoaded` event */
 export interface RouteDetailLoaded extends RouteDetail {
-    /** Svelte component */
-    component: Component
+     /** Svelte component */
+     component: Component
 
     /** Name of the Svelte component that was loaded (note: might be minified in production) */
     name: string
@@ -153,7 +153,7 @@ export const params: Readable<Record<string, string> | undefined>
 
 /** List of routes */
 export type RouteDefinition = Record<string, Component | WrappedComponent> |
-  Map<string | RegExp, Component | WrappedComponent>
+    Map<string | RegExp, Component | WrappedComponent>
 
 /** Generic interface for events from the router */
 interface RouterEvent<T> {

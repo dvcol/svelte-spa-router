@@ -30,10 +30,10 @@
 <!-- Show the router -->
 <Router
   {routes}
-  on:conditionsFailed={conditionsFailed}
-  on:routeLoaded={routeLoaded}
-  on:routeLoading={routeLoading}
-  on:routeEvent={routeEvent}
+  {conditionsFailed}
+  {routeLoaded}
+  {routeLoading}
+  routeEvents={[routeEvent]}
   {restoreScrollState}
 />
 
@@ -87,15 +87,15 @@
 <script>
 // Import the router component
 // Normally, this would be: `import Router from 'svelte-spa-router'`
-import Router from '../../../Router.svelte'
+import Router from '../../../lib/index.js'
 // Import the "link" action, the methods to control history programmatically from the same module, and the location store
 // The params store contains the current list of params, parsed
 // Normally, this would be: `import {link, push, pop, replace, location, querystring} from 'svelte-spa-router/active'`
-import {link, push, pop, replace, location, querystring, params} from '../../../Router.svelte'
+import {link, push, pop, replace, location, querystring, params} from '../../../lib/index.js'
 
 // Import the "active" action
 // Normally, this would be: `import active from 'svelte-spa-router/active'`
-import active from '../../../active'
+import active from '../../../lib/active/active.js'
 
 // Import the list of routes
 import routes from './routes'
@@ -106,8 +106,8 @@ let logbox = ''
 // Handles the "conditionsFailed" event dispatched by the router when a component can't be loaded because one of its pre-condition failed
 function conditionsFailed(event) {
     // eslint-disable-next-line no-console
-    console.error('Caught event conditionsFailed', event.detail)
-    logbox += 'conditionsFailed - ' + JSON.stringify(event.detail) + '\n'
+    console.error('Caught event conditionsFailed', event)
+    logbox += 'conditionsFailed - ' + JSON.stringify(event) + '\n'
 
     // Replace the route
     replace('/wild/conditions-failed')
@@ -116,23 +116,23 @@ function conditionsFailed(event) {
 // Handles the "routeLoaded" event dispatched by the router after a route has been successfully loaded
 function routeLoaded(event) {
     // eslint-disable-next-line no-console
-    console.info('Caught event routeLoaded', event.detail)
-    logbox += 'routeLoaded - ' + JSON.stringify(event.detail) + '\n'
+    console.info('Caught event routeLoaded', event)
+    logbox += 'routeLoaded - ' + JSON.stringify(event) + '\n'
 }
 
 // Handles the "routeLoading" event dispatched by the router whie a route is being loaded
 // If the route is dynamically imported, such as with the `import()` syntax, then there might be a delay before the route is loaded
 function routeLoading(event) {
     // eslint-disable-next-line no-console
-    console.info('Caught event routeLoading', event.detail)
-    logbox += 'routeLoading - ' + JSON.stringify(event.detail) + '\n'
+    console.info('Caught event routeLoading', event)
+    logbox += 'routeLoading - ' + JSON.stringify(event) + '\n'
 }
 
 // Handles event bubbling up from nested routes
 function routeEvent(event) {
     // eslint-disable-next-line no-console
-    console.info('Caught event routeEvent', event.detail)
-    logbox += 'routeEvent - ' + JSON.stringify(event.detail) + '\n'
+    console.info('Caught event routeEvent', event)
+    logbox += 'routeEvent - ' + JSON.stringify(event) + '\n'
 }
 
 // Enables the restoreScrollState option by checking for the "scroll=1" querystring parameter
